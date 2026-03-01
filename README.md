@@ -27,7 +27,7 @@ For the full motivation, see [Exploring External Skills in NanoClaw](https://nic
 ## Architecture
 
 ```
-skills/whatsapp/                         skills/telegram/
+nonnaclaw-skills/whatsapp/               nonnaclaw-skills/telegram/
 ┌──────────────────────┐                ┌──────────────────────┐
 │ Community MCP Server │                │ Community MCP Server │
 │ (stdio)              │                │ (stdio)              │
@@ -66,7 +66,7 @@ Single Node.js process on the host. MCP servers run as child processes with stdi
 
 ## Skill Anatomy
 
-A skill is a directory under `skills/` with two files:
+A skill is its own git repo, installed as a sibling directory under `nonnaclaw-skills/`. Each skill has two files:
 
 ### `skill.json`: Machine-readable manifest
 
@@ -110,7 +110,7 @@ The skill never touches core source files. It only configures itself and registe
 | Decision | NanoClaw | Nonnaclaw |
 |----------|----------|-----------|
 | Adding a channel | Claude rewrites `src/index.ts`, `src/router.ts`, etc. | Clone a community MCP server, add `skill.json` |
-| Skill format | Claude Code skill (`.claude/skills/`) that generates code | Self-contained package (`skills/`) with manifest + setup guide |
+| Skill format | Claude Code skill (`.claude/skills/`) that generates code | Sibling repo (`nonnaclaw-skills/`) with manifest + setup guide |
 | MCP server lifecycle | Spawned per-container (each agent starts its own) | Persistent on host, shared via HTTP bridge |
 | Tool authorization | Application-level checks in generated code | Proxy layer with `scopeTemplate` rules + param pinning |
 | Inbound messages | Channel-specific polling code in core | Generic `pollTool` in skill manifest, host polls automatically |
@@ -132,7 +132,7 @@ To add a skill:
 /install https://github.com/nickdirienzo/nonnaclaw-whatsapp
 ```
 
-Claude clones the repo, reads `SKILL.md`, walks you through auth, registers your groups, and restarts the service.
+Claude clones the repo into `nonnaclaw-skills/`, reads `SKILL.md`, walks you through auth, registers your groups, and restarts the service.
 
 ## What It Supports
 
@@ -166,7 +166,7 @@ Claude clones the repo, reads `SKILL.md`, walks you through auth, registers your
 | `src/task-scheduler.ts` | Runs scheduled tasks |
 | `src/db.ts` | SQLite operations (messages, groups, sessions, state) |
 | `container/agent-runner/src/mcp-proxy.ts` | In-container proxy: HTTP upstream + scope enforcement |
-| `skills/*/skill.json` | Skill manifests |
+| `../nonnaclaw-skills/*/skill.json` | Skill manifests (sibling directory) |
 | `groups/*/CLAUDE.md` | Per-group agent memory |
 
 ## Ancestry

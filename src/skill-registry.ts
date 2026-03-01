@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
+import { SKILLS_DIR } from './config.js';
 import { readEnvFile } from './env.js';
 import { logger } from './logger.js';
 import { getBridgePort } from './mcp-bridge.js';
@@ -11,31 +12,29 @@ import {
   SkillScope,
 } from './types.js';
 
-const DEFAULT_SKILLS_DIR = path.resolve(process.cwd(), 'skills');
-
 /**
  * Scan each skills subdirectory for skill.json and return validated LoadedSkill entries.
  * If the skills directory doesn't exist, returns empty array (no-op).
  */
 export function loadSkills(skillsDir?: string): LoadedSkill[] {
-  const SKILLS_DIR = skillsDir ?? DEFAULT_SKILLS_DIR;
-  if (!fs.existsSync(SKILLS_DIR)) {
-    logger.info('No skills/ directory found');
+  const dir = skillsDir ?? SKILLS_DIR;
+  if (!fs.existsSync(dir)) {
+    logger.info('No nonnaclaw-skills/ directory found');
     return [];
   }
 
   let entries: string[];
   try {
-    entries = fs.readdirSync(SKILLS_DIR);
+    entries = fs.readdirSync(dir);
   } catch (err) {
-    logger.warn({ err }, 'Failed to read skills/ directory');
+    logger.warn({ err }, 'Failed to read nonnaclaw-skills/ directory');
     return [];
   }
 
   const skills: LoadedSkill[] = [];
 
   for (const entry of entries) {
-    const skillDir = path.join(SKILLS_DIR, entry);
+    const skillDir = path.join(dir, entry);
     if (!fs.statSync(skillDir).isDirectory()) continue;
 
     const manifestPath = path.join(skillDir, 'skill.json');

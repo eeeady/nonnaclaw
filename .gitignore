@@ -18,8 +18,7 @@ groups/global/*
 !groups/main/CLAUDE.md
 !groups/global/CLAUDE.md
 
-# Skills (cloned per-installation from external repos)
-skills/
+# Skills live in sibling ../nonnaclaw-skills/ directory (not tracked here)
 
 # Secrets
 *.keys.json
