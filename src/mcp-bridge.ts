@@ -157,7 +157,10 @@ export async function callBridgeTool(
     await entry.upstream.callTool({ name: toolName, arguments: args });
     return true;
   } catch (err) {
-    logger.error({ skill: skillName, tool: toolName, err }, 'callBridgeTool failed');
+    logger.error(
+      { skill: skillName, tool: toolName, err },
+      'callBridgeTool failed',
+    );
     return false;
   }
 }

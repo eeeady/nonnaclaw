@@ -36,7 +36,11 @@ import { formatMessages, formatOutbound } from './router.js';
 import { writeOutboxEvent } from './outbox.js';
 import { loadSkills, resolveSkillForJid } from './skill-registry.js';
 import { startSchedulerLoop } from './task-scheduler.js';
-import { callBridgeTool, startMcpBridges, stopMcpBridges } from './mcp-bridge.js';
+import {
+  callBridgeTool,
+  startMcpBridges,
+  stopMcpBridges,
+} from './mcp-bridge.js';
 import { LoadedSkill, NewMessage, RegisteredGroup } from './types.js';
 import { logger } from './logger.js';
 
@@ -75,7 +79,10 @@ async function sendToJid(jid: string, text: string): Promise<void> {
       message: text,
     });
     if (sent) return;
-    logger.warn({ jid, skillName }, 'MCP bridge send failed, trying outbox fallback');
+    logger.warn(
+      { jid, skillName },
+      'MCP bridge send failed, trying outbox fallback',
+    );
   }
 
   // Fallback: file-based outbox for handler-based skills
@@ -361,10 +368,7 @@ function onInboxEvent(event: import('./types.js').InboxEvent): void {
       added_at: new Date().toISOString(),
       requiresTrigger: false,
     });
-    logger.info(
-      { jid },
-      'Bootstrap: auto-registered first DM as main group',
-    );
+    logger.info({ jid }, 'Bootstrap: auto-registered first DM as main group');
   }
 
   const group = registeredGroups[jid];

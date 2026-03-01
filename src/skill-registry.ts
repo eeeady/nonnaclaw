@@ -173,7 +173,10 @@ export function resolveSkillForJid(
   }
   // Fallback: MCP skills with send_message capability
   for (const skill of skills) {
-    if (skill.manifest.mcp && skill.manifest.scopeTemplate?.send_message?.allow) {
+    if (
+      skill.manifest.mcp &&
+      skill.manifest.scopeTemplate?.send_message?.allow
+    ) {
       return skill.manifest.name;
     }
   }
