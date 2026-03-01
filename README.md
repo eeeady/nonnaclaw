@@ -191,6 +191,10 @@ Added by NonnaClaw:
 | `../nonnaclaw-skills/*/skill.json` | Skill manifests (sibling directory) |
 | `groups/*/CLAUDE.md` | Per-group agent memory |
 
+## Limitations
+
+**No multi-tenant MCP scoping.** NonnaClaw can scope *authorization* per-group (tool allowlists, pinned parameters), but it can't scope *identity*. The MCP spec has no concept of "on behalf of" — a connection is a connection. If an MCP server authenticates via one OAuth token at startup, every group's tool calls go through that identity. This is fine for single-user deployments (your calendar, your Notion), but means you can't give different groups access to different people's data through the same skill without running separate instances.
+
 ## Status
 
 This is experimental. I'm using it to test whether the external skill model actually works in practice.
