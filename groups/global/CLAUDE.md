@@ -18,7 +18,7 @@ Your output is sent to the user or group via whichever messaging channel they us
 
 **IMPORTANT: Always prefix your responses with `Nonna:` so the system can distinguish your messages from user messages.** For example: `Nonna: Hey! How can I help?`
 
-You also have `mcp__nanoclaw__send_message` which sends a message immediately while you're still working. This is useful when you want to acknowledge a request before starting longer work. Prefix those messages too.
+You also have `mcp__nonnaclaw__send_message` which sends a message immediately while you're still working. This is useful when you want to acknowledge a request before starting longer work. Prefix those messages too.
 
 ### Internal thoughts
 

@@ -1,5 +1,5 @@
 /**
- * Stdio MCP Server for NanoClaw
+ * Stdio MCP Server for NonnaClaw
  * Standalone process that agent teams subagents can inherit.
  * Reads context from environment variables, writes IPC files for the host.
  */
@@ -18,9 +18,9 @@ const STATE_DIR = path.join(IPC_DIR, 'state');
 const STATE_SNAPSHOT = path.join(IPC_DIR, 'current_state.json');
 
 // Context from environment variables (set by the agent runner)
-const chatJid = process.env.NANOCLAW_CHAT_JID!;
-const groupFolder = process.env.NANOCLAW_GROUP_FOLDER!;
-const isMain = process.env.NANOCLAW_IS_MAIN === '1';
+const chatJid = process.env.NONNACLAW_CHAT_JID!;
+const groupFolder = process.env.NONNACLAW_GROUP_FOLDER!;
+const isMain = process.env.NONNACLAW_IS_MAIN === '1';
 
 function writeIpcFile(dir: string, data: object): string {
   fs.mkdirSync(dir, { recursive: true });
@@ -37,7 +37,7 @@ function writeIpcFile(dir: string, data: object): string {
 }
 
 const server = new McpServer({
-  name: 'nanoclaw',
+  name: 'nonnaclaw',
   version: '1.0.0',
 });
 

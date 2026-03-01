@@ -78,7 +78,7 @@ const { tools: upstreamTools } = await upstream.listTools();
 // --- Create proxy server ---
 
 const proxy = new Server(
-  { name: 'nanoclaw-mcp-proxy', version: '1.0.0' },
+  { name: 'nonnaclaw-mcp-proxy', version: '1.0.0' },
   { capabilities: { tools: {} } },
 );
 

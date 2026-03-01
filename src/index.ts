@@ -452,7 +452,7 @@ async function main(): Promise<void> {
   });
   queue.setProcessMessagesFn(processGroupMessages);
 
-  logger.info(`NanoClaw running (trigger: @${ASSISTANT_NAME})`);
+  logger.info(`NonnaClaw running (trigger: @${ASSISTANT_NAME})`);
 }
 
 // Guard: only run when executed directly, not when imported by tests
@@ -463,7 +463,7 @@ const isDirectRun =
 
 if (isDirectRun) {
   main().catch((err) => {
-    logger.error({ err }, 'Failed to start NanoClaw');
+    logger.error({ err }, 'Failed to start NonnaClaw');
     process.exit(1);
   });
 }

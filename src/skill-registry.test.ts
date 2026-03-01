@@ -33,7 +33,7 @@ vi.mock('./env.js', () => ({
   }),
 }));
 
-const SKILLS_DIR = '/tmp/nanoclaw-test-skills';
+const SKILLS_DIR = '/tmp/nonnaclaw-test-skills';
 
 describe('loadSkills', () => {
   beforeEach(() => {

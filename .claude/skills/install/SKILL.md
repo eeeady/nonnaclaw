@@ -111,19 +111,19 @@ npm run build
 ```
 
 Then restart the service:
-- macOS: `launchctl kickstart -k gui/$(id -u)/com.nanoclaw`
-- Linux: `systemctl --user restart nanoclaw`
+- macOS: `launchctl kickstart -k gui/$(id -u)/com.nonnaclaw`
+- Linux: `systemctl --user restart nonnaclaw`
 
 ### 9. Verify
 
 After restart, check the logs to confirm the skill loaded:
 ```bash
-tail -20 logs/nanoclaw.log | grep -i "skill loaded"
+tail -20 logs/nonnaclaw.log | grep -i "skill loaded"
 ```
 
 If the skill has an `mcp` field, also check the MCP bridge started:
 ```bash
-tail -20 logs/nanoclaw.log | grep -i "MCP bridge"
+tail -20 logs/nonnaclaw.log | grep -i "MCP bridge"
 ```
 
 Tell the user the skill is installed and ready. Remind them how to test it.
