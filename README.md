@@ -4,15 +4,21 @@ An experimental fork of [NanoClaw](https://github.com/qwibitai/NanoClaw) explori
 
 ## Philosophy
 
-NanoClaw's model is powerful: skills are Claude Code instructions that rewrite the codebase. Want Telegram? Run `/add-telegram` and Claude merges a channel implementation into your `src/index.ts`, `src/router.ts`, etc. The code is yours and fits your exact needs.
+NanoClaw's "features as skills" model is clever — instead of bloating the codebase, contributors ship Claude Code skills that rewrite your fork. Want Telegram? Run `/add-telegram` and Claude merges a channel implementation into `src/index.ts`, `src/router.ts`, etc. The code is yours.
 
-Nonnaclaw asks a different question: **what if adding a channel required zero code changes?**
+The problem is that skills aren't actually isolated. They modify core code paths, the shared SQLite database, and event loops. Each skill is a codemod, and codemods against a moving target create patch management headaches across personal forks. Two skills that touch the same file can conflict. Upstream updates can break your customizations.
 
-The MCP ecosystem already has community servers for WhatsApp, Telegram, Gmail, Slack, and hundreds of other services. Each one exposes tools via a standard protocol. Nonnaclaw treats these as plug-in skills: clone a repo, configure auth, register which groups can use which tools. Core never changes.
+This isn't a new problem. Browser extensions, VSCode extensions, Terraform providers — the pattern is well-established: **plugins declare capabilities, the host provides the runtime**. The plugin never patches the host.
+
+Nonnaclaw explores that model for agentic assistants. The core becomes primarily an event router, a container orchestrator, and an interface for inbox/outbox operations. Skills are declarative manifests that point at community MCP servers. Adding WhatsApp means cloning [lharries/whatsapp-mcp](https://github.com/lharries/whatsapp-mcp) and writing a `skill.json` — not generating code.
+
+For the full motivation, see [Exploring External Skills in NanoClaw](https://nickdirienzo.com/exploring-external-skills-in-nano-claw/).
+
+### What this means in practice
 
 **Skills are config, not codemods.** A skill is a `skill.json` manifest + a `SKILL.md` setup guide. No three-way merges, no generated code, no risk of conflicts between skills.
 
-**Community MCP servers are the ecosystem.** Instead of reimplementing WhatsApp from scratch, Nonnaclaw wraps [lharries/whatsapp-mcp](https://github.com/lharries/whatsapp-mcp) (5k+ stars, 12 tools). The community builds and maintains the integrations. Nonnaclaw just bridges them.
+**Community MCP servers are the ecosystem.** Instead of reimplementing WhatsApp from scratch, Nonnaclaw wraps a community server with 5k+ stars and 12 tools. The community builds and maintains the integrations. Nonnaclaw just bridges them.
 
 **Scoped authorization per group.** Each group declares which skill tools it can access and with what parameter constraints. A family group chat can only send messages to its own JID. The main channel gets unrestricted access. Scoping happens at the proxy layer — the agent never sees tools it isn't allowed to use.
 
@@ -165,11 +171,11 @@ Claude clones the repo, reads `SKILL.md`, walks you through auth, registers your
 
 ## Ancestry
 
-Nonnaclaw is a fork of [NanoClaw](https://github.com/qwibitai/NanoClaw) and wouldn't exist without it. NanoClaw's core insight — that a personal AI assistant should be small enough to understand, secure by isolation, and customizable by rewriting code — is the foundation everything here builds on. The container model, filesystem IPC, per-group isolation, the Claude Agent SDK harness, the entire runtime — all NanoClaw.
+Nonnaclaw is a fork of [NanoClaw](https://github.com/qwibitai/NanoClaw) by [Gavriel Cohen](https://github.com/gavrielco) and wouldn't exist without it. NanoClaw's core insight — that a personal AI assistant should be small enough to understand, secure by isolation, and customizable by rewriting code — is the foundation everything here builds on. The container model, filesystem IPC, per-group isolation, the Claude Agent SDK harness, the entire runtime — all NanoClaw.
 
 What Nonnaclaw changes is narrow: how skills are packaged and how channels are added. NanoClaw's "skills as codemods" model is elegant and works well for a single-user fork. Nonnaclaw experiments with an alternative: skills as self-contained MCP packages that never touch core, aimed at making it possible to compose multiple community-maintained skills without merge conflicts.
 
-This is an experiment. NanoClaw is the real thing. Go use it.
+This is an experiment. NanoClaw is the real thing. [Go use it](https://github.com/qwibitai/NanoClaw).
 
 ## License
 
