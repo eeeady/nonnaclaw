@@ -1,8 +1,6 @@
-<h1 align="center">NonnaClaw</h1>
+# NonnaClaw
 
-<p align="center">
-  An experimental fork of <a href="https://github.com/qwibitai/NanoClaw">NanoClaw</a> exploring a skill model that adds capabilities without codemods — using MCP servers, filesystem IPC, and scoped authorization instead of code generation.
-</p>
+An experimental fork of [NanoClaw](https://github.com/qwibitai/NanoClaw) exploring a skill model that adds capabilities without codemods — using MCP servers, filesystem IPC, and scoped authorization instead of code generation.
 
 ## Philosophy
 
