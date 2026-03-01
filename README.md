@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="assets/nanoclaw-logo.png" alt="Nonnaclaw" width="400">
-</p>
+<h1 align="center">NonnaClaw</h1>
 
 <p align="center">
   An experimental fork of <a href="https://github.com/qwibitai/NanoClaw">NanoClaw</a> exploring a skill model that adds capabilities without codemods — using MCP servers, filesystem IPC, and scoped authorization instead of code generation.
