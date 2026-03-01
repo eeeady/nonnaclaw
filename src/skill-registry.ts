@@ -59,46 +59,12 @@ export function loadSkills(skillsDir?: string): LoadedSkill[] {
       continue;
     }
 
-    // Validate inbound entrypoint exists on disk
-    if (manifest.inbound) {
-      const entrypoint = path.resolve(skillDir, manifest.inbound.entrypoint);
-      if (!fs.existsSync(entrypoint)) {
-        logger.warn(
-          { skillDir, entrypoint: manifest.inbound.entrypoint },
-          'Inbound entrypoint not found, skipping inbound config',
-        );
-        manifest.inbound = undefined;
-      }
-      // For poll mode (non-persistent), require and validate intervalMs
-      if (manifest.inbound && !manifest.inbound.persistent) {
-        if (!manifest.inbound.intervalMs) {
-          logger.warn(
-            { skillDir },
-            'Inbound intervalMs required for poll mode, skipping inbound config',
-          );
-          manifest.inbound = undefined;
-        } else if (manifest.inbound.intervalMs < 1000) {
-          logger.warn(
-            { skillDir, intervalMs: manifest.inbound.intervalMs },
-            'Inbound intervalMs below minimum (1000ms), clamping',
-          );
-          manifest.inbound.intervalMs = 1000;
-        }
-      }
-    }
-
-    // Resolve env vars for the inbound entrypoint
-    const allEnvKeys = manifest.envKeys || [];
-    const inboundEnv =
-      allEnvKeys.length > 0 ? readEnvFile(allEnvKeys) : undefined;
-
-    skills.push({ manifest, dir: skillDir, inboundEnv });
+    skills.push({ manifest, dir: skillDir });
     logger.info(
       {
         name: manifest.name,
         version: manifest.version,
         hasMcp: !!manifest.mcp || !!manifest.mcpServers,
-        hasInbound: !!manifest.inbound,
         hasScopeTemplate: !!manifest.scopeTemplate,
       },
       'Skill loaded',
@@ -151,27 +117,13 @@ export function collectMcpServers(
 }
 
 /**
- * Match a JID against loaded skills' outbound.jidPatterns or MCP send capability.
- * Returns the skill name that handles outbound for this JID, or undefined.
- *
- * Priority:
- * 1. Skills with explicit outbound.jidPatterns (pattern match)
- * 2. MCP skills with send_message in scopeTemplate (catch-all for MCP channels)
+ * Find the skill that can send messages to a JID.
+ * Returns the first MCP skill with send_message capability.
  */
 export function resolveSkillForJid(
   skills: LoadedSkill[],
-  jid: string,
+  _jid: string,
 ): string | undefined {
-  // First: check explicit outbound patterns
-  for (const skill of skills) {
-    if (!skill.manifest.outbound?.jidPatterns) continue;
-    for (const pattern of skill.manifest.outbound.jidPatterns) {
-      if (matchJidPattern(pattern, jid)) {
-        return skill.manifest.name;
-      }
-    }
-  }
-  // Fallback: MCP skills with send_message capability
   for (const skill of skills) {
     if (
       skill.manifest.mcp &&
@@ -181,17 +133,6 @@ export function resolveSkillForJid(
     }
   }
   return undefined;
-}
-
-function matchJidPattern(pattern: string, jid: string): boolean {
-  if (pattern === '*') return true;
-  if (pattern.startsWith('*')) {
-    return jid.endsWith(pattern.slice(1));
-  }
-  if (pattern.endsWith('*')) {
-    return jid.startsWith(pattern.slice(0, -1));
-  }
-  return jid === pattern;
 }
 
 /**

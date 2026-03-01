@@ -20,7 +20,6 @@ import {
 } from './db.js';
 import { isValidGroupFolder } from './group-folder.js';
 import { logger } from './logger.js';
-import { writeOutboxEvent } from './outbox.js';
 import { RegisteredGroup } from './types.js';
 
 export interface IpcDeps {
@@ -28,7 +27,6 @@ export interface IpcDeps {
   registeredGroups: () => Record<string, RegisteredGroup>;
   registerGroup: (jid: string, group: RegisteredGroup) => void;
   syncGroupMetadata?: (force: boolean) => Promise<void>;
-  resolveSkillForJid?: (jid: string) => string | undefined;
   getAvailableGroups: () => AvailableGroup[];
   writeGroupsSnapshot: (
     groupFolder: string,
@@ -91,22 +89,10 @@ export function startIpcWatcher(deps: IpcDeps): void {
                   try {
                     await deps.sendMessage(data.chatJid, data.text);
                   } catch {
-                    // No channel owns this JID — try skill outbox routing
-                    const skillName = deps.resolveSkillForJid?.(data.chatJid);
-                    if (skillName) {
-                      writeOutboxEvent(skillName, {
-                        type: 'message',
-                        jid: data.chatJid,
-                        text: data.text,
-                        sender: data.sender,
-                        timestamp: new Date().toISOString(),
-                      });
-                    } else {
-                      logger.warn(
-                        { chatJid: data.chatJid, sourceGroup },
-                        'No channel or skill for JID',
-                      );
-                    }
+                    logger.warn(
+                      { chatJid: data.chatJid, sourceGroup },
+                      'Failed to send IPC message',
+                    );
                   }
                   logger.info(
                     { chatJid: data.chatJid, sourceGroup },

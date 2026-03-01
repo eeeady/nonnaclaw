@@ -39,10 +39,6 @@ function createSchema(database: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_task_run_logs ON task_run_logs(task_id, run_at);
 
-    CREATE TABLE IF NOT EXISTS router_state (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
     CREATE TABLE IF NOT EXISTS sessions (
       group_folder TEXT PRIMARY KEY,
       session_id TEXT NOT NULL
@@ -247,21 +243,6 @@ export function logTaskRun(log: TaskRunLog): void {
     log.result,
     log.error,
   );
-}
-
-// --- Router state accessors ---
-
-export function getRouterState(key: string): string | undefined {
-  const row = db
-    .prepare('SELECT value FROM router_state WHERE key = ?')
-    .get(key) as { value: string } | undefined;
-  return row?.value;
-}
-
-export function setRouterState(key: string, value: string): void {
-  db.prepare(
-    'INSERT OR REPLACE INTO router_state (key, value) VALUES (?, ?)',
-  ).run(key, value);
 }
 
 // --- Session accessors ---
@@ -498,9 +479,6 @@ function migrateJsonState(): void {
       return null;
     }
   };
-
-  // Migrate router_state.json (consume the file even if we no longer use cursor state)
-  migrateFile('router_state.json');
 
   // Migrate sessions.json
   const sessions = migrateFile('sessions.json') as Record<

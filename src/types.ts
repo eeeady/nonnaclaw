@@ -76,16 +76,6 @@ export interface SkillManifest {
   };
   /** Declares which tools to expose and which params need per-group pinning */
   scopeTemplate?: Record<string, ScopeTemplateRule>;
-  /** @deprecated Use mcp + scopeTemplate. Kept for backward compat with handler-based skills. */
-  inbound?: {
-    entrypoint: string; // relative path, e.g. "./inbound.js"
-    intervalMs?: number; // poll interval, min 1000ms (required for poll mode)
-    persistent?: boolean; // if true, process runs continuously (restart on crash)
-  };
-  /** @deprecated Use mcp + scopeTemplate. */
-  outbound?: {
-    jidPatterns: string[]; // glob patterns for JIDs this skill handles, e.g. ["*@g.us"]
-  };
   /** @deprecated Use mcp field instead. Agent-facing MCP servers (legacy). */
   mcpServers?: Record<
     string,
@@ -95,7 +85,7 @@ export interface SkillManifest {
       envKeys?: string[]; // env var names — values resolved from .env at runtime
     }
   >;
-  envKeys?: string[]; // env vars for the inbound entrypoint
+  envKeys?: string[];
 }
 
 export interface InboxEvent {
@@ -110,19 +100,9 @@ export interface InboxEvent {
   metadata?: Record<string, unknown>;
 }
 
-export interface OutboxEvent {
-  type: 'message' | 'typing';
-  jid: string;
-  text?: string;
-  isTyping?: boolean;
-  sender?: string;
-  timestamp: string;
-}
-
 export interface LoadedSkill {
   manifest: SkillManifest;
   dir: string; // absolute path to skill directory
-  inboundEnv?: Record<string, string>;
 }
 
 export interface NewMessage {

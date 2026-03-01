@@ -33,7 +33,6 @@ import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
 import { formatMessages, formatOutbound } from './router.js';
-import { writeOutboxEvent } from './outbox.js';
 import { loadSkills, resolveSkillForJid } from './skill-registry.js';
 import { startSchedulerLoop } from './task-scheduler.js';
 import {
@@ -43,9 +42,6 @@ import {
 } from './mcp-bridge.js';
 import { LoadedSkill, NewMessage, RegisteredGroup } from './types.js';
 import { logger } from './logger.js';
-
-// Re-export for backwards compatibility during refactor
-export { escapeXml, formatMessages } from './router.js';
 
 let sessions: Record<string, string> = {};
 let registeredGroups: Record<string, RegisteredGroup> = {};
@@ -60,9 +56,7 @@ let skills: LoadedSkill[] = [];
 const pendingMessages = new Map<string, NewMessage[]>();
 
 /**
- * Send a message to a JID via the MCP bridge or skill outbox.
- * MCP skills with send_message are called directly via the bridge.
- * Legacy handler-based skills use the file-based outbox.
+ * Send a message to a JID via the MCP bridge.
  */
 async function sendToJid(jid: string, text: string): Promise<void> {
   const skillName = resolveSkillForJid(skills, jid);
@@ -71,7 +65,6 @@ async function sendToJid(jid: string, text: string): Promise<void> {
     return;
   }
 
-  // Try MCP bridge first (for MCP-based skills like WhatsApp)
   const skill = skills.find((s) => s.manifest.name === skillName);
   if (skill?.manifest.mcp && skill.manifest.scopeTemplate?.send_message) {
     const sent = await callBridgeTool(skillName, 'send_message', {
@@ -79,19 +72,9 @@ async function sendToJid(jid: string, text: string): Promise<void> {
       message: text,
     });
     if (sent) return;
-    logger.warn(
-      { jid, skillName },
-      'MCP bridge send failed, trying outbox fallback',
-    );
   }
 
-  // Fallback: file-based outbox for handler-based skills
-  writeOutboxEvent(skillName, {
-    type: 'message',
-    jid,
-    text,
-    timestamp: new Date().toISOString(),
-  });
+  logger.warn({ jid, skillName }, 'Failed to send message via MCP bridge');
 }
 
 /**
@@ -463,7 +446,6 @@ async function main(): Promise<void> {
     sendMessage: (jid, text) => sendToJid(jid, text),
     registeredGroups: () => registeredGroups,
     registerGroup,
-    resolveSkillForJid: (jid) => resolveSkillForJid(skills, jid),
     getAvailableGroups,
     writeGroupsSnapshot: (gf, im, ag, rj) =>
       writeGroupsSnapshot(gf, im, ag, rj),

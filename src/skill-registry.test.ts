@@ -114,135 +114,6 @@ describe('loadSkills', () => {
     expect(skills[0].dir).toBe(skillDir);
   });
 
-  it('loads a skill with inbound config when entrypoint exists', () => {
-    const skillDir = path.join(SKILLS_DIR, 'telegram');
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(path.join(skillDir, 'inbound.js'), 'console.log("ok")');
-    fs.writeFileSync(
-      path.join(skillDir, 'skill.json'),
-      JSON.stringify({
-        name: 'telegram',
-        version: '1.0.0',
-        inbound: {
-          entrypoint: './inbound.js',
-          intervalMs: 5000,
-        },
-      }),
-    );
-
-    const skills = loadSkills(SKILLS_DIR);
-    expect(skills).toHaveLength(1);
-    expect(skills[0].manifest.inbound).toBeDefined();
-    expect(skills[0].manifest.inbound!.intervalMs).toBe(5000);
-  });
-
-  it('strips inbound config when entrypoint does not exist', () => {
-    const skillDir = path.join(SKILLS_DIR, 'missing-entry');
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(skillDir, 'skill.json'),
-      JSON.stringify({
-        name: 'missing-entry',
-        version: '1.0.0',
-        inbound: {
-          entrypoint: './does-not-exist.js',
-          intervalMs: 5000,
-        },
-      }),
-    );
-
-    const skills = loadSkills(SKILLS_DIR);
-    expect(skills).toHaveLength(1);
-    expect(skills[0].manifest.inbound).toBeUndefined();
-  });
-
-  it('clamps intervalMs below 1000ms', () => {
-    const skillDir = path.join(SKILLS_DIR, 'fast');
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(path.join(skillDir, 'poll.js'), '');
-    fs.writeFileSync(
-      path.join(skillDir, 'skill.json'),
-      JSON.stringify({
-        name: 'fast',
-        version: '1.0.0',
-        inbound: {
-          entrypoint: './poll.js',
-          intervalMs: 100,
-        },
-      }),
-    );
-
-    const skills = loadSkills(SKILLS_DIR);
-    expect(skills[0].manifest.inbound!.intervalMs).toBe(1000);
-  });
-
-  it('loads persistent skill without intervalMs', () => {
-    const skillDir = path.join(SKILLS_DIR, 'whatsapp');
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(path.join(skillDir, 'service.js'), '');
-    fs.writeFileSync(
-      path.join(skillDir, 'skill.json'),
-      JSON.stringify({
-        name: 'whatsapp',
-        version: '1.0.0',
-        inbound: {
-          entrypoint: './service.js',
-          persistent: true,
-        },
-      }),
-    );
-
-    const skills = loadSkills(SKILLS_DIR);
-    expect(skills).toHaveLength(1);
-    expect(skills[0].manifest.inbound).toBeDefined();
-    expect(skills[0].manifest.inbound!.persistent).toBe(true);
-    expect(skills[0].manifest.inbound!.intervalMs).toBeUndefined();
-  });
-
-  it('strips poll-mode inbound without intervalMs', () => {
-    const skillDir = path.join(SKILLS_DIR, 'bad-poll');
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(path.join(skillDir, 'poll.js'), '');
-    fs.writeFileSync(
-      path.join(skillDir, 'skill.json'),
-      JSON.stringify({
-        name: 'bad-poll',
-        version: '1.0.0',
-        inbound: {
-          entrypoint: './poll.js',
-          // no intervalMs and not persistent — should be stripped
-        },
-      }),
-    );
-
-    const skills = loadSkills(SKILLS_DIR);
-    expect(skills).toHaveLength(1);
-    expect(skills[0].manifest.inbound).toBeUndefined();
-  });
-
-  it('loads skill with outbound jidPatterns', () => {
-    const skillDir = path.join(SKILLS_DIR, 'wa');
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(skillDir, 'skill.json'),
-      JSON.stringify({
-        name: 'wa',
-        version: '1.0.0',
-        outbound: {
-          jidPatterns: ['*@g.us', '*@s.whatsapp.net'],
-        },
-      }),
-    );
-
-    const skills = loadSkills(SKILLS_DIR);
-    expect(skills).toHaveLength(1);
-    expect(skills[0].manifest.outbound).toBeDefined();
-    expect(skills[0].manifest.outbound!.jidPatterns).toEqual([
-      '*@g.us',
-      '*@s.whatsapp.net',
-    ]);
-  });
-
   it('loads multiple skills', () => {
     for (const name of ['alpha', 'beta']) {
       const dir = path.join(SKILLS_DIR, name);
@@ -331,64 +202,55 @@ describe('resolveSkillForJid', () => {
       manifest: {
         name: 'whatsapp',
         version: '1.0.0',
-        outbound: {
-          jidPatterns: ['*@g.us', '*@s.whatsapp.net', '*@lid'],
+        mcp: { command: 'uv', args: ['run', 'main.py'] },
+        scopeTemplate: {
+          send_message: { allow: true, scopedParams: ['recipient'] },
         },
       },
       dir: '/skills/whatsapp',
     },
     {
       manifest: {
-        name: 'telegram',
+        name: 'no-send',
         version: '1.0.0',
-        outbound: {
-          jidPatterns: ['tg:*'],
+        mcp: { command: 'node', args: ['server.js'] },
+        scopeTemplate: {
+          list_items: { allow: true },
         },
       },
-      dir: '/skills/telegram',
+      dir: '/skills/no-send',
     },
     {
       manifest: {
-        name: 'no-outbound',
+        name: 'no-mcp',
         version: '1.0.0',
       },
-      dir: '/skills/no-outbound',
+      dir: '/skills/no-mcp',
     },
   ];
 
-  it('matches suffix pattern *@g.us', () => {
+  it('returns MCP skill with send_message capability', () => {
     expect(resolveSkillForJid(skills, '12345@g.us')).toBe('whatsapp');
   });
 
-  it('matches suffix pattern *@s.whatsapp.net', () => {
-    expect(resolveSkillForJid(skills, '5551234@s.whatsapp.net')).toBe(
-      'whatsapp',
-    );
+  it('skips skills without send_message in scopeTemplate', () => {
+    const noSend: LoadedSkill[] = [skills[1], skills[2]];
+    expect(resolveSkillForJid(noSend, 'any@jid')).toBeUndefined();
   });
 
-  it('matches suffix pattern *@lid', () => {
-    expect(resolveSkillForJid(skills, 'abc123@lid')).toBe('whatsapp');
+  it('skips skills without mcp config', () => {
+    const noMcp: LoadedSkill[] = [skills[2]];
+    expect(resolveSkillForJid(noMcp, 'any@jid')).toBeUndefined();
   });
 
-  it('matches prefix pattern tg:*', () => {
-    expect(resolveSkillForJid(skills, 'tg:chat456')).toBe('telegram');
-  });
-
-  it('returns undefined for unmatched JID', () => {
-    expect(resolveSkillForJid(skills, 'slack:channel1')).toBeUndefined();
-  });
-
-  it('skips skills without outbound config', () => {
-    expect(resolveSkillForJid(skills, 'anything')).toBeUndefined();
-  });
-
-  it('returns first matching skill when multiple could match', () => {
-    const overlapping: LoadedSkill[] = [
+  it('returns first matching skill when multiple have send_message', () => {
+    const multi: LoadedSkill[] = [
       {
         manifest: {
           name: 'first',
           version: '1.0.0',
-          outbound: { jidPatterns: ['*'] },
+          mcp: { command: 'a' },
+          scopeTemplate: { send_message: { allow: true } },
         },
         dir: '/skills/first',
       },
@@ -396,41 +258,13 @@ describe('resolveSkillForJid', () => {
         manifest: {
           name: 'second',
           version: '1.0.0',
-          outbound: { jidPatterns: ['*'] },
+          mcp: { command: 'b' },
+          scopeTemplate: { send_message: { allow: true } },
         },
         dir: '/skills/second',
       },
     ];
-    expect(resolveSkillForJid(overlapping, 'any@jid')).toBe('first');
-  });
-
-  it('matches exact JID pattern', () => {
-    const exact: LoadedSkill[] = [
-      {
-        manifest: {
-          name: 'specific',
-          version: '1.0.0',
-          outbound: { jidPatterns: ['admin@g.us'] },
-        },
-        dir: '/skills/specific',
-      },
-    ];
-    expect(resolveSkillForJid(exact, 'admin@g.us')).toBe('specific');
-    expect(resolveSkillForJid(exact, 'other@g.us')).toBeUndefined();
-  });
-
-  it('matches wildcard * pattern (matches everything)', () => {
-    const catchAll: LoadedSkill[] = [
-      {
-        manifest: {
-          name: 'catch-all',
-          version: '1.0.0',
-          outbound: { jidPatterns: ['*'] },
-        },
-        dir: '/skills/catch-all',
-      },
-    ];
-    expect(resolveSkillForJid(catchAll, 'anything@anywhere')).toBe('catch-all');
+    expect(resolveSkillForJid(multi, 'any@jid')).toBe('first');
   });
 
   it('returns undefined for empty skills array', () => {
