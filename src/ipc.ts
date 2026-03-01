@@ -183,7 +183,11 @@ export function startIpcWatcher(deps: IpcDeps): void {
             const filePath = path.join(stateDir, file);
             try {
               const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-              if (data.type === 'save_state' && data.key && data.value != null) {
+              if (
+                data.type === 'save_state' &&
+                data.key &&
+                data.value != null
+              ) {
                 setKvState(sourceGroup, data.key, data.value);
                 logger.debug(
                   { key: data.key, sourceGroup },

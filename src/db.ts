@@ -598,9 +598,7 @@ export function setRegisteredGroup(jid: string, group: RegisteredGroup): void {
     group.authorizedMcpServers
       ? JSON.stringify(group.authorizedMcpServers)
       : null,
-    group.authorizedSkills
-      ? JSON.stringify(group.authorizedSkills)
-      : null,
+    group.authorizedSkills ? JSON.stringify(group.authorizedSkills) : null,
   );
 }
 
@@ -709,9 +707,10 @@ export function setKvState(
 }
 
 export function deleteKvState(groupFolder: string, key: string): void {
-  db.prepare(
-    'DELETE FROM kv_store WHERE group_folder = ? AND key = ?',
-  ).run(groupFolder, key);
+  db.prepare('DELETE FROM kv_store WHERE group_folder = ? AND key = ?').run(
+    groupFolder,
+    key,
+  );
 }
 
 export function getAllKvStateForGroup(

@@ -57,9 +57,7 @@ export interface McpBridgeConfig {
  * Start MCP bridges for all skills that declare an `mcp` field.
  * Each skill gets a persistent upstream connection + HTTP endpoint.
  */
-export async function startMcpBridges(
-  config: McpBridgeConfig,
-): Promise<void> {
+export async function startMcpBridges(config: McpBridgeConfig): Promise<void> {
   const basePort = config.basePort ?? MCP_BASE_PORT;
   let portOffset = 0;
 
@@ -69,10 +67,7 @@ export async function startMcpBridges(
     const port = basePort + portOffset++;
     try {
       await startBridge(skill, port, config.onInboxEvent);
-      logger.info(
-        { skill: skill.manifest.name, port },
-        'MCP bridge started',
-      );
+      logger.info({ skill: skill.manifest.name, port }, 'MCP bridge started');
     } catch (err) {
       logger.error(
         { skill: skill.manifest.name, port, err },
@@ -94,15 +89,21 @@ export async function stopMcpBridges(): Promise<void> {
 
     try {
       entry.httpServer.close();
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
 
     try {
       await entry.httpTransport.close();
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
 
     try {
       await entry.upstream.close();
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
 
     if (entry.childProcess) {
       entry.childProcess.kill('SIGTERM');
@@ -141,9 +142,10 @@ async function startBridge(
     env: { ...process.env, ...env } as Record<string, string>,
   });
 
-  const upstream = new Client(
-    { name: `nonnaclaw-bridge-${name}`, version: '1.0.0' },
-  );
+  const upstream = new Client({
+    name: `nonnaclaw-bridge-${name}`,
+    version: '1.0.0',
+  });
 
   await upstream.connect(upstreamTransport);
 
@@ -180,7 +182,10 @@ async function startBridge(
     // CORS headers for container access
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, mcp-session-id');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Content-Type, mcp-session-id',
+    );
 
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
@@ -296,9 +301,12 @@ function processPolledMessage(
     chatId: String(msg.chat_id ?? msg.chatId ?? msg.chat_jid ?? ''),
     content: String(msg.content ?? msg.text ?? msg.body ?? msg.message ?? ''),
     sender: String(msg.sender ?? msg.from ?? msg.sender_jid ?? ''),
-    senderName: String(msg.sender_name ?? msg.senderName ?? msg.pushName ?? msg.sender_jid ?? ''),
+    senderName: String(
+      msg.sender_name ?? msg.senderName ?? msg.pushName ?? msg.sender_jid ?? '',
+    ),
     timestamp,
-    messageId: (msg.message_id ?? msg.id) ? String(msg.message_id ?? msg.id) : undefined,
+    messageId:
+      (msg.message_id ?? msg.id) ? String(msg.message_id ?? msg.id) : undefined,
     metadata: {
       isGroup: msg.is_group ?? msg.isGroup,
       isBotMessage: msg.is_from_me ?? msg.isFromMe,
