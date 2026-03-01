@@ -46,6 +46,12 @@ The thesis is that you can add channels to a personal AI assistant without modif
 
 So far, WhatsApp works as a fully external skill: a `skill.json` manifest pointing at a community MCP server, a `SKILL.md` setup guide, and zero lines changed in core. That's one channel. The experiment is whether this holds as more get added.
 
+Here's a WhatsApp message hitting two external MCP skills (WhatsApp for the channel, GitHub for the query) with no core code involved:
+
+<p align="center">
+  <img src="assets/whatsapp-git-demo.png" width="300" alt="WhatsApp conversation where Nonna answers a git query using two external MCP skills" />
+</p>
+
 ## Architecture
 
 ```
@@ -78,7 +84,7 @@ nonnaclaw-skills/whatsapp/               nonnaclaw-skills/telegram/
 |  - Applies scopeTemplate: tool allowlists + param pinning        |
 |  - Agent only sees tools it's authorized for                     |
 |                                                                  |
-|  NanoClaw MCP (ipc-mcp-stdio.ts)                                 |
+|  NonnaClaw MCP (ipc-mcp-stdio.ts)                                 |
 |  - send_message, schedule_task, save_state, etc.                 |
 |                                                                  |
 |  Claude Agent SDK                                                |
