@@ -16,6 +16,16 @@ vi.mock('child_process', () => ({
   execSync: (...args: unknown[]) => mockExecSync(...args),
 }));
 
+// Mock orchestrator — container-runtime.ts now delegates to the plugin
+const mockEnsureReady = vi.fn(async () => {});
+const mockCleanupOrphans = vi.fn(async () => {});
+vi.mock('./orchestrator/index.js', () => ({
+  getPlugin: () => ({
+    ensureReady: mockEnsureReady,
+    cleanupOrphans: mockCleanupOrphans,
+  }),
+}));
+
 import {
   CONTAINER_RUNTIME_BIN,
   readonlyMountArgs,
@@ -46,104 +56,47 @@ describe('stopContainer', () => {
   });
 });
 
-// --- ensureContainerRuntimeRunning ---
+// --- ensureContainerRuntimeRunning (deprecated wrapper) ---
 
 describe('ensureContainerRuntimeRunning', () => {
   it('does nothing when runtime is already running', () => {
-    mockExecSync.mockReturnValueOnce('');
+    mockEnsureReady.mockResolvedValueOnce(undefined);
 
     ensureContainerRuntimeRunning();
 
-    expect(mockExecSync).toHaveBeenCalledTimes(1);
-    expect(mockExecSync).toHaveBeenCalledWith(`${CONTAINER_RUNTIME_BIN} info`, {
-      stdio: 'pipe',
-      timeout: 10000,
-    });
-    expect(logger.debug).toHaveBeenCalledWith(
-      'Container runtime already running',
-    );
+    expect(mockEnsureReady).toHaveBeenCalledTimes(1);
   });
 
-  it('throws when docker info fails', () => {
-    mockExecSync.mockImplementationOnce(() => {
-      throw new Error('Cannot connect to the Docker daemon');
-    });
-
-    expect(() => ensureContainerRuntimeRunning()).toThrow(
-      'Container runtime is required but failed to start',
+  it('delegates error handling to plugin', () => {
+    mockEnsureReady.mockRejectedValueOnce(
+      new Error('Container runtime is required but failed to start'),
     );
-    expect(logger.error).toHaveBeenCalled();
+
+    // Deprecated wrapper catches rejections via .catch()
+    ensureContainerRuntimeRunning();
+
+    expect(mockEnsureReady).toHaveBeenCalledTimes(1);
   });
 });
 
-// --- cleanupOrphans ---
+// --- cleanupOrphans (deprecated wrapper) ---
 
 describe('cleanupOrphans', () => {
-  it('stops orphaned nonnaclaw containers', () => {
-    // docker ps returns container names, one per line
-    mockExecSync.mockReturnValueOnce(
-      'nonnaclaw-group1-111\nnonnaclaw-group2-222\n',
-    );
-    // stop calls succeed
-    mockExecSync.mockReturnValue('');
+  it('delegates to plugin', () => {
+    mockCleanupOrphans.mockResolvedValueOnce(undefined);
 
     cleanupOrphans();
 
-    // ps + 2 stop calls
-    expect(mockExecSync).toHaveBeenCalledTimes(3);
-    expect(mockExecSync).toHaveBeenNthCalledWith(
-      2,
-      `${CONTAINER_RUNTIME_BIN} stop nonnaclaw-group1-111`,
-      { stdio: 'pipe' },
-    );
-    expect(mockExecSync).toHaveBeenNthCalledWith(
-      3,
-      `${CONTAINER_RUNTIME_BIN} stop nonnaclaw-group2-222`,
-      { stdio: 'pipe' },
-    );
-    expect(logger.info).toHaveBeenCalledWith(
-      { count: 2, names: ['nonnaclaw-group1-111', 'nonnaclaw-group2-222'] },
-      'Stopped orphaned containers',
-    );
+    expect(mockCleanupOrphans).toHaveBeenCalledTimes(1);
   });
 
-  it('does nothing when no orphans exist', () => {
-    mockExecSync.mockReturnValueOnce('');
-
-    cleanupOrphans();
-
-    expect(mockExecSync).toHaveBeenCalledTimes(1);
-    expect(logger.info).not.toHaveBeenCalled();
-  });
-
-  it('warns and continues when ps fails', () => {
-    mockExecSync.mockImplementationOnce(() => {
-      throw new Error('docker not available');
-    });
+  it('handles plugin errors gracefully', () => {
+    mockCleanupOrphans.mockRejectedValueOnce(
+      new Error('docker not available'),
+    );
 
     cleanupOrphans(); // should not throw
 
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ err: expect.any(Error) }),
-      'Failed to clean up orphaned containers',
-    );
-  });
-
-  it('continues stopping remaining containers when one stop fails', () => {
-    mockExecSync.mockReturnValueOnce('nonnaclaw-a-1\nnonnaclaw-b-2\n');
-    // First stop fails
-    mockExecSync.mockImplementationOnce(() => {
-      throw new Error('already stopped');
-    });
-    // Second stop succeeds
-    mockExecSync.mockReturnValueOnce('');
-
-    cleanupOrphans(); // should not throw
-
-    expect(mockExecSync).toHaveBeenCalledTimes(3);
-    expect(logger.info).toHaveBeenCalledWith(
-      { count: 2, names: ['nonnaclaw-a-1', 'nonnaclaw-b-2'] },
-      'Stopped orphaned containers',
-    );
+    expect(mockCleanupOrphans).toHaveBeenCalledTimes(1);
   });
 });

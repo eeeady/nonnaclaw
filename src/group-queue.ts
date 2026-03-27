@@ -1,9 +1,8 @@
 import { ChildProcess } from 'child_process';
-import fs from 'fs';
-import path from 'path';
 
-import { DATA_DIR, MAX_CONCURRENT_CONTAINERS } from './config.js';
+import { MAX_CONCURRENT_CONTAINERS } from './config.js';
 import { logger } from './logger.js';
+import { getPlugin } from './orchestrator/index.js';
 
 interface QueuedTask {
   id: string;
@@ -157,18 +156,9 @@ export class GroupQueue {
       return false;
     state.idleWaiting = false; // Agent is about to receive work, no longer idle
 
-    const inputDir = path.join(DATA_DIR, 'ipc', state.groupFolder, 'input');
-    try {
-      fs.mkdirSync(inputDir, { recursive: true });
-      const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}.json`;
-      const filepath = path.join(inputDir, filename);
-      const tempPath = `${filepath}.tmp`;
-      fs.writeFileSync(tempPath, JSON.stringify({ type: 'message', text }));
-      fs.renameSync(tempPath, filepath);
-      return true;
-    } catch {
-      return false;
-    }
+    return getPlugin()
+      .getIpcTransport()
+      .sendInput(state.groupFolder, { type: 'message', text });
   }
 
   /**
@@ -178,13 +168,7 @@ export class GroupQueue {
     const state = this.getGroup(groupJid);
     if (!state.active || !state.groupFolder) return;
 
-    const inputDir = path.join(DATA_DIR, 'ipc', state.groupFolder, 'input');
-    try {
-      fs.mkdirSync(inputDir, { recursive: true });
-      fs.writeFileSync(path.join(inputDir, '_close'), '');
-    } catch {
-      // ignore
-    }
+    getPlugin().getIpcTransport().sendClose(state.groupFolder);
   }
 
   private async runForGroup(
