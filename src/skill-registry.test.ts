@@ -46,6 +46,13 @@ vi.mock('./mcp-bridge.js', () => ({
     mockRegisterGroupScope(skill, group, rules),
 }));
 
+// Mock orchestrator — getNetworkInfo is used for MCP upstream URLs
+vi.mock('./orchestrator/index.js', () => ({
+  getPlugin: () => ({
+    getNetworkInfo: () => ({ hostAddress: 'host.docker.internal' }),
+  }),
+}));
+
 const SKILLS_DIR = '/tmp/nonnaclaw-test-skills';
 
 describe('loadSkills', () => {

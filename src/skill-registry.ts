@@ -5,6 +5,7 @@ import { SKILLS_DIR } from './config.js';
 import { readEnvFile } from './env.js';
 import { logger } from './logger.js';
 import { getBridgePort, registerGroupScope } from './mcp-bridge.js';
+import { getPlugin } from './orchestrator/index.js';
 import {
   LoadedSkill,
   RegisteredGroup,
@@ -188,7 +189,7 @@ export function collectProxiedMcpServers(
         command: 'node',
         args: [mcpForwarderPath],
         env: {
-          MCP_UPSTREAM_URL: `http://host.docker.internal:${bridgePort}/mcp/${group.folder}`,
+          MCP_UPSTREAM_URL: `http://${getPlugin().getNetworkInfo().hostAddress}:${bridgePort}/mcp/${group.folder}`,
         },
       };
     }

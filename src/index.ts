@@ -15,10 +15,7 @@ import {
   writeStateSnapshot,
   writeTasksSnapshot,
 } from './container-runner.js';
-import {
-  cleanupOrphans,
-  ensureContainerRuntimeRunning,
-} from './container-runtime.js';
+import { initPlugin } from './orchestrator/index.js';
 import {
   getAllKvStateForGroup,
   getAllRegisteredGroups,
@@ -317,9 +314,10 @@ async function runAgent(
   }
 }
 
-function ensureContainerSystemRunning(): void {
-  ensureContainerRuntimeRunning();
-  cleanupOrphans();
+async function ensureContainerSystemRunning(): Promise<void> {
+  const plugin = initPlugin();
+  await plugin.ensureReady();
+  await plugin.cleanupOrphans();
 }
 
 /**
@@ -402,7 +400,7 @@ function onInboxEvent(event: import('./types.js').InboxEvent): void {
 }
 
 async function main(): Promise<void> {
-  ensureContainerSystemRunning();
+  await ensureContainerSystemRunning();
   initDatabase();
   logger.info('Database initialized');
   loadState();

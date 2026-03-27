@@ -1,19 +1,13 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { EventEmitter } from 'events';
-import { PassThrough } from 'stream';
-
-// Sentinel markers must match container-runner.ts
-const OUTPUT_START_MARKER = '---NONNACLAW_OUTPUT_START---';
-const OUTPUT_END_MARKER = '---NONNACLAW_OUTPUT_END---';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock config
 vi.mock('./config.js', () => ({
   CONTAINER_IMAGE: 'nonnaclaw-agent:latest',
   CONTAINER_MAX_OUTPUT_SIZE: 10485760,
-  CONTAINER_TIMEOUT: 1800000, // 30min
+  CONTAINER_TIMEOUT: 1800000,
   DATA_DIR: '/tmp/nonnaclaw-test-data',
   GROUPS_DIR: '/tmp/nonnaclaw-test-groups',
-  IDLE_TIMEOUT: 1800000, // 30min
+  IDLE_TIMEOUT: 1800000,
   TIMEZONE: 'America/Los_Angeles',
 }));
 
@@ -27,65 +21,42 @@ vi.mock('./logger.js', () => ({
   },
 }));
 
-// Mock fs
-vi.mock('fs', async () => {
-  const actual = await vi.importActual<typeof import('fs')>('fs');
-  return {
-    ...actual,
-    default: {
-      ...actual,
-      existsSync: vi.fn(() => false),
-      mkdirSync: vi.fn(),
-      writeFileSync: vi.fn(),
-      readFileSync: vi.fn(() => ''),
-      readdirSync: vi.fn(() => []),
-      statSync: vi.fn(() => ({ isDirectory: () => false })),
-      copyFileSync: vi.fn(),
-    },
-  };
-});
-
-// Mock mount-security
-vi.mock('./mount-security.js', () => ({
-  validateAdditionalMounts: vi.fn(() => []),
+// Mock env
+vi.mock('./env.js', () => ({
+  readEnvFile: vi.fn(() => ({ CLAUDE_CODE_OAUTH_TOKEN: 'test-token' })),
 }));
 
-// Create a controllable fake ChildProcess
-function createFakeProcess() {
-  const proc = new EventEmitter() as EventEmitter & {
-    stdin: PassThrough;
-    stdout: PassThrough;
-    stderr: PassThrough;
-    kill: ReturnType<typeof vi.fn>;
-    pid: number;
-  };
-  proc.stdin = new PassThrough();
-  proc.stdout = new PassThrough();
-  proc.stderr = new PassThrough();
-  proc.kill = vi.fn();
-  proc.pid = 12345;
-  return proc;
-}
+// Mock skill-registry
+vi.mock('./skill-registry.js', () => ({
+  collectProxiedMcpServers: vi.fn(() => ({})),
+}));
 
-let fakeProc: ReturnType<typeof createFakeProcess>;
+// Track mock plugin behavior
+const mockLaunchAgent = vi.fn();
+const mockPrepareMounts = vi.fn(() => []);
+const mockWriteSnapshot = vi.fn();
+const mockRegisterGroupConfig = vi.fn();
 
-// Mock child_process.spawn
-vi.mock('child_process', async () => {
-  const actual =
-    await vi.importActual<typeof import('child_process')>('child_process');
-  return {
-    ...actual,
-    spawn: vi.fn(() => fakeProc),
-    exec: vi.fn(
-      (_cmd: string, _opts: unknown, cb?: (err: Error | null) => void) => {
-        if (cb) cb(null);
-        return new EventEmitter();
-      },
-    ),
-  };
-});
+vi.mock('./orchestrator/index.js', () => ({
+  getPlugin: () => ({
+    prepareMounts: mockPrepareMounts,
+    launchAgent: mockLaunchAgent,
+    getIpcTransport: () => ({
+      writeSnapshot: mockWriteSnapshot,
+    }),
+  }),
+}));
 
-import { runContainerAgent, ContainerOutput } from './container-runner.js';
+vi.mock('./orchestrator/docker-plugin.js', () => ({
+  DockerPlugin: class {},
+}));
+
+import {
+  runContainerAgent,
+  writeTasksSnapshot,
+  writeGroupsSnapshot,
+  writeStateSnapshot,
+} from './container-runner.js';
 import type { RegisteredGroup } from './types.js';
 
 const testGroup: RegisteredGroup = {
@@ -102,108 +73,119 @@ const testInput = {
   isMain: false,
 };
 
-function emitOutputMarker(
-  proc: ReturnType<typeof createFakeProcess>,
-  output: ContainerOutput,
-) {
-  const json = JSON.stringify(output);
-  proc.stdout.push(`${OUTPUT_START_MARKER}\n${json}\n${OUTPUT_END_MARKER}\n`);
-}
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
-describe('container-runner timeout behavior', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    fakeProc = createFakeProcess();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('timeout after output resolves as success', async () => {
-    const onOutput = vi.fn(async () => {});
-    const resultPromise = runContainerAgent(
-      testGroup,
-      testInput,
-      () => {},
-      onOutput,
-    );
-
-    // Emit output with a result
-    emitOutputMarker(fakeProc, {
+describe('runContainerAgent (facade)', () => {
+  it('delegates to plugin.launchAgent', async () => {
+    mockLaunchAgent.mockResolvedValueOnce({
       status: 'success',
-      result: 'Here is my response',
+      result: 'Done',
       newSessionId: 'session-123',
     });
 
-    // Let output processing settle
-    await vi.advanceTimersByTimeAsync(10);
+    const result = await runContainerAgent(
+      testGroup,
+      testInput,
+      () => {},
+    );
 
-    // Fire the hard timeout (IDLE_TIMEOUT + 30s = 1830000ms)
-    await vi.advanceTimersByTimeAsync(1830000);
-
-    // Emit close event (as if container was stopped by the timeout)
-    fakeProc.emit('close', 137);
-
-    // Let the promise resolve
-    await vi.advanceTimersByTimeAsync(10);
-
-    const result = await resultPromise;
+    expect(mockPrepareMounts).toHaveBeenCalledWith(testGroup, false);
+    expect(mockLaunchAgent).toHaveBeenCalledTimes(1);
     expect(result.status).toBe('success');
     expect(result.newSessionId).toBe('session-123');
-    expect(onOutput).toHaveBeenCalledWith(
-      expect.objectContaining({ result: 'Here is my response' }),
-    );
   });
 
-  it('timeout with no output resolves as error', async () => {
+  it('passes onOutput callback through', async () => {
     const onOutput = vi.fn(async () => {});
-    const resultPromise = runContainerAgent(
-      testGroup,
-      testInput,
-      () => {},
-      onOutput,
-    );
-
-    // No output emitted — fire the hard timeout
-    await vi.advanceTimersByTimeAsync(1830000);
-
-    // Emit close event
-    fakeProc.emit('close', 137);
-
-    await vi.advanceTimersByTimeAsync(10);
-
-    const result = await resultPromise;
-    expect(result.status).toBe('error');
-    expect(result.error).toContain('timed out');
-    expect(onOutput).not.toHaveBeenCalled();
-  });
-
-  it('normal exit after output resolves as success', async () => {
-    const onOutput = vi.fn(async () => {});
-    const resultPromise = runContainerAgent(
-      testGroup,
-      testInput,
-      () => {},
-      onOutput,
-    );
-
-    // Emit output
-    emitOutputMarker(fakeProc, {
+    mockLaunchAgent.mockResolvedValueOnce({
       status: 'success',
-      result: 'Done',
-      newSessionId: 'session-456',
+      result: null,
     });
 
-    await vi.advanceTimersByTimeAsync(10);
+    await runContainerAgent(testGroup, testInput, () => {}, onOutput);
 
-    // Normal exit (no timeout)
-    fakeProc.emit('close', 0);
+    // The 4th argument to launchAgent should be the onOutput callback
+    expect(mockLaunchAgent.mock.calls[0][3]).toBe(onOutput);
+  });
 
-    await vi.advanceTimersByTimeAsync(10);
+  it('returns error on plugin failure', async () => {
+    mockLaunchAgent.mockResolvedValueOnce({
+      status: 'error',
+      result: null,
+      error: 'Container exited with code 1',
+    });
 
-    const result = await resultPromise;
-    expect(result.status).toBe('success');
-    expect(result.newSessionId).toBe('session-456');
+    const result = await runContainerAgent(
+      testGroup,
+      testInput,
+      () => {},
+    );
+
+    expect(result.status).toBe('error');
+    expect(result.error).toContain('Container exited');
+  });
+});
+
+describe('writeTasksSnapshot', () => {
+  it('writes filtered tasks for non-main group', () => {
+    const tasks = [
+      { id: '1', groupFolder: 'test-group', prompt: 'a', schedule_type: 'cron', schedule_value: '* * * * *', status: 'active', next_run: null },
+      { id: '2', groupFolder: 'other-group', prompt: 'b', schedule_type: 'cron', schedule_value: '* * * * *', status: 'active', next_run: null },
+    ];
+
+    writeTasksSnapshot('test-group', false, tasks);
+
+    expect(mockWriteSnapshot).toHaveBeenCalledWith(
+      'test-group',
+      'current_tasks.json',
+      expect.any(String),
+    );
+    const written = JSON.parse(mockWriteSnapshot.mock.calls[0][2]);
+    expect(written).toHaveLength(1);
+    expect(written[0].id).toBe('1');
+  });
+
+  it('writes all tasks for main group', () => {
+    const tasks = [
+      { id: '1', groupFolder: 'main', prompt: 'a', schedule_type: 'cron', schedule_value: '* * * * *', status: 'active', next_run: null },
+      { id: '2', groupFolder: 'other', prompt: 'b', schedule_type: 'cron', schedule_value: '* * * * *', status: 'active', next_run: null },
+    ];
+
+    writeTasksSnapshot('main', true, tasks);
+
+    const written = JSON.parse(mockWriteSnapshot.mock.calls[0][2]);
+    expect(written).toHaveLength(2);
+  });
+});
+
+describe('writeGroupsSnapshot', () => {
+  it('writes groups for main, empty for non-main', () => {
+    const groups = [{ jid: 'a@g.us', name: 'A', lastActivity: '', isRegistered: true }];
+
+    writeGroupsSnapshot('main', true, groups, new Set(['a@g.us']));
+    const mainData = JSON.parse(mockWriteSnapshot.mock.calls[0][2]);
+    expect(mainData.groups).toHaveLength(1);
+
+    mockWriteSnapshot.mockClear();
+
+    writeGroupsSnapshot('other', false, groups, new Set(['a@g.us']));
+    const otherData = JSON.parse(mockWriteSnapshot.mock.calls[0][2]);
+    expect(otherData.groups).toHaveLength(0);
+  });
+});
+
+describe('writeStateSnapshot', () => {
+  it('delegates to IPC transport', () => {
+    writeStateSnapshot('test-group', { key1: 'val1' });
+
+    expect(mockWriteSnapshot).toHaveBeenCalledWith(
+      'test-group',
+      'current_state.json',
+      expect.any(String),
+    );
+    const written = JSON.parse(mockWriteSnapshot.mock.calls[0][2]);
+    expect(written.key1).toBe('val1');
   });
 });

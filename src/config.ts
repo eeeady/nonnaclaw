@@ -63,6 +63,10 @@ export const TRIGGER_PATTERN = new RegExp(
   'i',
 );
 
+// Orchestrator plugin: 'docker' (default) or 'ecs'
+export const ORCHESTRATOR_PLUGIN =
+  process.env.NONNACLAW_ORCHESTRATOR || 'docker';
+
 // Timezone for scheduled tasks (cron expressions, etc.)
 // Uses system timezone by default
 export const TIMEZONE =
